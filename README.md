@@ -49,17 +49,6 @@ For each experiment, the models were evaluated across three different train-test
 
 The F1 score was the primary metric used for evaluation, as it provides a balanced measure of precision and recall, which is crucial for imbalanced datasets.
 
-## Results
-**Experiment 1: Full Article Text**
-* **Best Model**: Multinomial Naive Bayes was the top performer, achieving the highest F1 score of 0.6203 and a recall of 0.7133.
-* **Most Balanced**: Decision Tree provided the most balanced results between precision and recall, performing best with simpler settings like unigrams. Its highest F1-score was 0.6065.
-* **Weakest Model**: k-Nearest Neighbors struggled significantly. It had the highest recall (around 96%) but very low precision, leading to the lowest overall F1 scores and making it unsuitable for practical use.
-
-**Experiment 2: Headlines Only**
-* **Best Model**: Decision Tree performed best when using only headlines, achieving the highest F1 score of 0.6120 and a recall of 0.7467.
-* **Runner-Up**: Multinomial Naive Bayes followed closely with an F1 score of 0.6118.
-* **Weakest Model**: k-NN was again the least effective model, suffering from low precision (~43%) and a high number of false positives
-
 ## Conclusion
 
 Multinomial Naive Bayes proved to be the most effective model for classifying full articles, while Decision Trees excelled when analyzing headlines alone. In contrast, k-Nearest Neighbors consistently struggled across both experiments due to a high false positive rate. The project also highlighted that simpler TF-IDF parameters, such as single-word tokenization and smaller feature sets, tended to perform better.
