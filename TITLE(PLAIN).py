@@ -52,30 +52,28 @@ plt.title('Fake vs. Real News Distribution')
 plt.axis('equal')  # Equal aspect ratio ensures the pie is circular
 plt.show()
 
-#---
-# 1. Controlled Experiment Runner (with Confusion Matrix)
-from sklearn.metrics import confusion_matrix
+#______________
 
-def run_single_experiment(model_name, test_size, ngram_range, min_df, max_features):
-    lowercase = True
-    stop_words = 'english'
-    
-    # Set up TF-IDF
+# Confirm required column
+assert 'title_without_stopwords' in df.columns, "Missing 'title_without_stopwords' column"
+
+# 3. Define Experiment Runner Function
+def run_title_split_experiment(model_name, test_size, ngram_range, min_df, max_features):
     tfidf_vectorizer = TfidfVectorizer(
-        lowercase=lowercase,
-        stop_words=stop_words,
+        lowercase=True,
+        stop_words='english',
         min_df=min_df,
         ngram_range=ngram_range,
         max_features=max_features
     )
-    X_tfidf = tfidf_vectorizer.fit_transform(X)
     
-    # Split
+    X = tfidf_vectorizer.fit_transform(df['title_without_stopwords'].astype(str))
+    y = df['label'].map({'Fake': 0, 'Real': 1})  # Binary encoding
+
     X_train, X_test, y_train, y_test = train_test_split(
-        X_tfidf, y, test_size=test_size, random_state=42, stratify=y
+        X, y, test_size=test_size, random_state=42, stratify=y
     )
     
-    # Select model
     if model_name == 'Decision Tree':
         model = DecisionTreeClassifier(random_state=42)
     elif model_name == 'k-NN':
@@ -83,14 +81,10 @@ def run_single_experiment(model_name, test_size, ngram_range, min_df, max_featur
     elif model_name == 'Multinomial NB':
         model = MultinomialNB()
     else:
-        raise ValueError(f"Unknown model {model_name}")
+        raise ValueError(f"Unsupported model: {model_name}")
     
-    # Train and predict
     model.fit(X_train, y_train)
     y_pred = model.predict(X_test)
-    
-    # Generate confusion matrix
-    cm = confusion_matrix(y_test, y_pred)
     
     return {
         'Model': model_name,
@@ -99,86 +93,62 @@ def run_single_experiment(model_name, test_size, ngram_range, min_df, max_featur
         'Precision': round(precision_score(y_test, y_pred), 4),
         'Recall': round(recall_score(y_test, y_pred), 4),
         'F1 Score': round(f1_score(y_test, y_pred), 4),
-        'Lowercase': lowercase,
-        'Stop Words': stop_words,
         'Min DF': min_df,
         'N-Gram Range': ngram_range,
-        'Max Features': max_features,
-        'Confusion Matrix': cm  # <== Save confusion matrix here
+        'Max Features': max_features
     }
 
-# 2. Define Experiments
-
-experiment_plan = [
+# 4. Define Experiment Plan
+title_split_experiment_plan = [
     # Decision Tree
-    ('Decision Tree', 0.2, (1,1), 5, 1000),
-    ('Decision Tree', 0.3, (1,2), 10, 3000),
-    ('Decision Tree', 0.4, (1,3), 15, 2000),
+    ('Decision Tree', 0.2, (1, 1), 5, 1000),
+    ('Decision Tree', 0.3, (1, 2), 10, 3000),
+    ('Decision Tree', 0.4, (1, 3), 15, 2000),
     
     # k-NN
-    ('k-NN', 0.2, (1,1), 5, 1000),
-    ('k-NN', 0.3, (1,2), 10, 3000),
-    ('k-NN', 0.4, (1,3), 15, 2000),
+    ('k-NN', 0.2, (1, 1), 5, 1000),
+    ('k-NN', 0.3, (1, 2), 10, 3000),
+    ('k-NN', 0.4, (1, 3), 15, 2000),
     
     # Multinomial NB
-    ('Multinomial NB', 0.2, (1,1), 5, 1000),
-    ('Multinomial NB', 0.3, (1,2), 10, 3000),
-    ('Multinomial NB', 0.4, (1,3), 15, 2000)
+    ('Multinomial NB', 0.2, (1, 1), 5, 1000),
+    ('Multinomial NB', 0.3, (1, 2), 10, 3000),
+    ('Multinomial NB', 0.4, (1, 3), 15, 2000)
 ]
 
-# 3. Run Experiments
 
-results = []
+# 5. Run Experiments
 
-for model_name, test_size, ngram_range, min_df, max_features in experiment_plan:
-    result = run_single_experiment(
+title_split_results = []
+
+for model_name, test_size, ngram_range, min_df, max_features in title_split_experiment_plan:
+    result = run_title_split_experiment(
         model_name, test_size, ngram_range, min_df, max_features
     )
-    results.append(result)
+    title_split_results.append(result)
 
-# 4. Display Final Results
+# 6. Display Clean Results Table
 
-import pandas as pd
+results_df = pd.DataFrame(title_split_results)
+results_df = results_df.sort_values(by=['Model', 'Test Size'])
 
-# Separate confusion matrices
-confusion_matrices = [res.pop('Confusion Matrix') for res in results]
+# Ensure all columns display in one row
+pd.set_option('display.max_columns', None)
+pd.set_option('display.width', 160)
 
-controlled_results_df = pd.DataFrame(results)
-controlled_results_df = controlled_results_df.sort_values(by=['Model', 'Test Size'])
-
-print(controlled_results_df)
-
-
-# 5. Plot Confusion Matrices
+# Print clean table
+print(results_df)
 
 
-import matplotlib.pyplot as plt
-import seaborn as sns
+#-----------------
 
-# Quick plot all confusion matrices
-fig, axes = plt.subplots(3, 3, figsize=(18, 15))  # 9 plots (3x3)
+from imblearn.over_sampling import SMOTE
 
-for idx, cm in enumerate(confusion_matrices):
-    row = idx // 3
-    col = idx % 3
-    ax = axes[row, col]
-    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', cbar=False, ax=ax)
-    ax.set_xlabel('Predicted')
-    ax.set_ylabel('Actual')
-    ax.set_title(f"{controlled_results_df.iloc[idx]['Model']} (Split={controlled_results_df.iloc[idx]['Test Size']})")
+# 2. Confirm Required Column
+assert 'title_without_stopwords' in df.columns, "Missing 'title_without_stopwords' column"
 
-plt.tight_layout()
-plt.show()
-
-#----
-# 1. Prepare Data
-X = df['text_without_stopwords'].astype(str)
-y = df['label'].map({'Fake': 0, 'Real': 1})
-
-
-# 2. SMOTE Experiment Runner
-
-def run_smote_experiment(model_name, test_size, ngram_range, min_df, max_features):
+# 3. Define Experiment Runner Function (with SMOTE and Confusion Matrix)
+def run_title_split_experiment(model_name, test_size, ngram_range, min_df, max_features):
     tfidf_vectorizer = TfidfVectorizer(
         lowercase=True,
         stop_words='english',
@@ -186,14 +156,15 @@ def run_smote_experiment(model_name, test_size, ngram_range, min_df, max_feature
         ngram_range=ngram_range,
         max_features=max_features
     )
-    X_tfidf = tfidf_vectorizer.fit_transform(X)
+    
+    X = tfidf_vectorizer.fit_transform(df['title_without_stopwords'].astype(str))
+    y = df['label'].map({'Fake': 0, 'Real': 1})  # Binary encoding
 
-    # Split data
     X_train, X_test, y_train, y_test = train_test_split(
-        X_tfidf, y, test_size=test_size, random_state=42, stratify=y
+        X, y, test_size=test_size, random_state=42, stratify=y
     )
 
-    # Apply SMOTE
+    # Apply SMOTE to training data
     smote = SMOTE(random_state=42)
     X_train_resampled, y_train_resampled = smote.fit_resample(X_train, y_train)
 
@@ -206,10 +177,12 @@ def run_smote_experiment(model_name, test_size, ngram_range, min_df, max_feature
         model = MultinomialNB()
     else:
         raise ValueError(f"Unsupported model: {model_name}")
-
+    
     # Train and predict
     model.fit(X_train_resampled, y_train_resampled)
     y_pred = model.predict(X_test)
+
+    # Confusion matrix
     cm = confusion_matrix(y_test, y_pred)
 
     return {
@@ -225,50 +198,54 @@ def run_smote_experiment(model_name, test_size, ngram_range, min_df, max_feature
         'Confusion Matrix': cm
     }
 
-
-# 3. Define Experiment Plan 
-smote_experiment_plan = [
-    ('Decision Tree', 0.2, (1,1), 5, 1000),
-    ('Decision Tree', 0.3, (1,2), 10, 3000),
-    ('Decision Tree', 0.4, (1,3), 15, 2000),
-
-    ('k-NN', 0.2, (1,1), 5, 1000),
-    ('k-NN', 0.3, (1,2), 10, 3000),
-    ('k-NN', 0.4, (1,3), 15, 2000),
-
-    ('Multinomial NB', 0.2, (1,1), 5, 1000),
-    ('Multinomial NB', 0.3, (1,2), 10, 3000),
-    ('Multinomial NB', 0.4, (1,3), 15, 2000)
+# 4. Define Experiment Plan
+title_split_experiment_plan = [
+    # Decision Tree
+    ('Decision Tree', 0.2, (1, 1), 5, 1000),
+    ('Decision Tree', 0.3, (1, 2), 10, 3000),
+    ('Decision Tree', 0.4, (1, 3), 15, 2000),
+    
+    # k-NN
+    ('k-NN', 0.2, (1, 1), 5, 1000),
+    ('k-NN', 0.3, (1, 2), 10, 3000),
+    ('k-NN', 0.4, (1, 3), 15, 2000),
+    
+    # Multinomial NB
+    ('Multinomial NB', 0.2, (1, 1), 5, 1000),
+    ('Multinomial NB', 0.3, (1, 2), 10, 3000),
+    ('Multinomial NB', 0.4, (1, 3), 15, 2000)
 ]
 
-# 4. Run Experiments
-smote_results = []
+# 5. Run Experiments
+title_split_results = []
 
-for model_name, test_size, ngram_range, min_df, max_features in smote_experiment_plan:
-    result = run_smote_experiment(
+for model_name, test_size, ngram_range, min_df, max_features in title_split_experiment_plan:
+    result = run_title_split_experiment(
         model_name, test_size, ngram_range, min_df, max_features
     )
-    smote_results.append(result)
+    title_split_results.append(result)
 
-# 5. Display Results and Confusion Matrices
-# Separate confusion matrices
-confusion_matrices = [res.pop('Confusion Matrix') for res in smote_results]
-smote_results_df = pd.DataFrame(smote_results)
-smote_results_df = smote_results_df.sort_values(by=['Model', 'Test Size'])
+# 6. Display Clean Results Table
+# Separate confusion matrices for plotting
+confusion_matrices = [res.pop('Confusion Matrix') for res in title_split_results]
 
-# Display results
+# Create DataFrame
+results_df = pd.DataFrame(title_split_results)
+results_df = results_df.sort_values(by=['Model', 'Test Size'])
+
+# Display results table
 pd.set_option('display.max_columns', None)
 pd.set_option('display.width', 160)
-print(smote_results_df)
+print(results_df)
 
-# Plot confusion matrices
+# 7. Plot Confusion Matrices
 fig, axes = plt.subplots(3, 3, figsize=(18, 15))
 
 for idx, cm in enumerate(confusion_matrices):
     row, col = divmod(idx, 3)
     ax = axes[row, col]
-    sns.heatmap(cm, annot=True, fmt='d', cmap='Greens', cbar=False, ax=ax)
-    ax.set_title(f"{smote_results_df.iloc[idx]['Model']} (Split={smote_results_df.iloc[idx]['Test Size']}, SMOTE)")
+    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', cbar=False, ax=ax)
+    ax.set_title(f"{results_df.iloc[idx]['Model']} (Split={results_df.iloc[idx]['Test Size']}, SMOTE)")
     ax.set_xlabel("Predicted")
     ax.set_ylabel("Actual")
 
