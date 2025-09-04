@@ -51,8 +51,6 @@ plt.pie(sizes, labels=labels, autopct='%1.1f%%', startangle=140, colors=colors, 
 plt.title('Fake vs. Real News Distribution')
 plt.axis('equal')  # Equal aspect ratio ensures the pie is circular
 plt.show()
-
-#---
 # 1. Controlled Experiment Runner (with Confusion Matrix)
 from sklearn.metrics import confusion_matrix
 
@@ -169,8 +167,6 @@ for idx, cm in enumerate(confusion_matrices):
 
 plt.tight_layout()
 plt.show()
-
-#----
 # 1. Prepare Data
 X = df['text_without_stopwords'].astype(str)
 y = df['label'].map({'Fake': 0, 'Real': 1})
